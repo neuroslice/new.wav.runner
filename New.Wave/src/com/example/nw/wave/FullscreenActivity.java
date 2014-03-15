@@ -4,11 +4,14 @@ import com.example.nw.wave.util.SystemUiHider;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.media.MediaPlayer;
+import android.media.audiofx.Visualizer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.TextView;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -17,6 +20,11 @@ import android.view.View;
  * @see SystemUiHider
  */
 public class FullscreenActivity extends Activity {
+	private byte[] mBytes;
+	MediaPlayer mp;
+	Visualizer mVisualizer;
+	TextView txtView;
+	
 	/**
 	 * Whether or not the system UI should be auto-hidden after
 	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -45,6 +53,7 @@ public class FullscreenActivity extends Activity {
 	 */
 	private SystemUiHider mSystemUiHider;
 
+	@TargetApi(Build.VERSION_CODES.GINGERBREAD)
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -116,6 +125,50 @@ public class FullscreenActivity extends Activity {
 		// while interacting with the UI.
 		findViewById(R.id.dummy_button).setOnTouchListener(
 				mDelayHideTouchListener);
+		
+		txtView = (TextView)findViewById(R.id.textView1);
+		mp = MediaPlayer.create(this, R.raw.if_this_dont_shock_ya_no_charge);
+		
+		mVisualizer = new Visualizer(mp.getAudioSessionId());
+		
+		mVisualizer = new Visualizer(mp.getAudioSessionId());
+	    System.out.println("mVIsualizer is not null: " + (mVisualizer != null));
+		
+	    mBytes = null;
+	    
+		mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+	    Visualizer.OnDataCaptureListener captureListener = new Visualizer.OnDataCaptureListener(){
+		    @Override
+		    public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate){
+		        //PCM DATA
+		    	mBytes = bytes;
+		    	if(mBytes != null){
+		    		int sum = 0;
+
+		            for(int i = 0; i < bytes.length; i++) {
+		                sum += bytes[i];
+		            }
+		    		txtView.setText(""+sum);
+		    	}
+		    }
+		    
+			@Override
+		    public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate){
+				
+		    }
+		};
+		
+		mVisualizer.setDataCaptureListener(captureListener, Visualizer.getMaxCaptureRate() / 2, true, false);
+		
+		// Enabled Visualizer and disable when we're done with the stream
+		mVisualizer.setEnabled(true);
+		mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener(){
+		    @Override
+		    public void onCompletion(MediaPlayer mediaPlayer){
+		        mVisualizer.setEnabled(false);
+		    }
+		});
+		
 	}
 
 	@Override
@@ -139,6 +192,12 @@ public class FullscreenActivity extends Activity {
 			if (AUTO_HIDE) {
 				delayedHide(AUTO_HIDE_DELAY_MILLIS);
 			}
+			if (mp.isPlaying()) {
+                mp.pause();
+            }
+			else {
+                mp.start();
+            }
 			return false;
 		}
 	};
